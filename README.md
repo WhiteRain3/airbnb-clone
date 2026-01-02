@@ -112,6 +112,7 @@ airbnb-clone/
 │   ├── server.js        # API endpoint'ai ir DB logika
 │   └── database.db      # Fizinė SQLite duomenų bazė (atsiranda po paleidimo)
 └── package.json         # Konfigūracija ir "npm start" skriptas
+```
 
 ##🛡️ Saugumas ir Duomenų vientisumas
 * **Slaptažodžiai:** Naudojama bcrypt biblioteka „hašavimui“. Duomenų bazėje saugomi tik negrįžtami kontroliniai kodai.
