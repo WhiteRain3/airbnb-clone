@@ -1,4 +1,4 @@
-import { Calendar, LayoutDashboard, LogOut, PlusCircle, ShieldCheck, User } from 'lucide-react'; // Pridėta ShieldCheck
+import { Calendar, Gamepad2, LayoutDashboard, LogOut, PlusCircle, ShieldCheck, User } from 'lucide-react'; // Pridėta Gamepad2 ikona
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/auth';
@@ -28,12 +28,19 @@ const Navbar = () => {
 
         {/* Dešinė pusė */}
         <div className="flex items-center gap-4">
+          {/* IŠSKIRTINĖ FUNKCIJA: Žaidimas (matomas visiems prisijungusiems) */}
+          {user && role === 'guest' && (
+            <Link to="/game" className="text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-xl flex items-center gap-2 transition animate-pulse hover:animate-none">
+              <Gamepad2 size={18} /> Žaidimas 🎁
+            </Link>
+          )}
+
           {user ? (
             <>
               {/* Admin nuoroda */}
               {role === 'admin' && (
                 <Link to="/admin" className="text-sm font-bold text-emerald-600 hover:bg-emerald-50 px-4 py-2 rounded-xl flex items-center gap-2 transition">
-                  <LayoutDashboard size={18} /> Valdymas
+                  <LayoutDashboard size={18} /> Admin Skydas
                 </Link>
               )}
 
