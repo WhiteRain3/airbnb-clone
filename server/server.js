@@ -28,14 +28,16 @@ db.serialize(() => {
     role TEXT
   )`)
 
-  // 2. Skelbimų lentelė
+  // 2. Skelbimų lentelė (Atnaujinta su DESCRIPTION)
   db.run(`CREATE TABLE IF NOT EXISTS listings (
     id INTEGER PRIMARY KEY AUTOINCREMENT, 
     title TEXT, 
+    description TEXT, 
     price REAL, 
     location TEXT, 
     category TEXT, 
-    image TEXT
+    image TEXT,
+    host_email TEXT
   )`)
 
   // 3. Rezervacijų lentelė
@@ -47,46 +49,56 @@ db.serialize(() => {
     status TEXT DEFAULT 'Patvirtinta'
   )`)
 
-  // Pradiniai vartotojai (Admin, Host, Guest)
+  // Pradiniai vartotojai
   const hash = (pw) => bcrypt.hashSync(pw, saltRounds)
   db.run("INSERT OR IGNORE INTO users (email, password, role) VALUES (?, ?, ?)", ["admin@vu.lt", hash("123"), "admin"])
   db.run("INSERT OR IGNORE INTO users (email, password, role) VALUES (?, ?, ?)", ["host@vu.lt", hash("123"), "host"])
   db.run("INSERT OR IGNORE INTO users (email, password, role) VALUES (?, ?, ?)", ["guest@vu.lt", hash("123"), "guest"])
 
-  // Pradiniai skelbimai (tik jei lentelė tuščia)
+  // Pradiniai skelbimai su aprašymais
   db.get("SELECT COUNT(*) as count FROM listings", (err, row) => {
     if (row && row.count === 0) {
       const initialListings = [
         [
           "Prabangus loftas senamiestyje",
+          "Aukštos lubos, autentiškos plytos ir modernus interjeras pačioje miesto širdyje. Puikiai tinka poroms ar verslo kelionėms.",
           120,
           "Vilnius, Lietuva",
           "Miestas",
           "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800",
+          "host@vu.lt",
         ],
         [
           "Namelis medyje",
+          "Pabėkite nuo miesto triukšmo į ramybės oazę. Šis namelis medyje suteiks nepamirštamą patirtį gamtos apsuptyje.",
           85,
           "Anykščiai, Lietuva",
           "Gamta",
           "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fs.hdnux.com%2Fphotos%2F01%2F01%2F17%2F10%2F17101347%2F3%2FrawImage.jpg&f=1&nofb=1&ipt=726eb6ab1b025ca8b4e6b7dccde943a3269f29022f11995aff16bdd000548149",
+          "host@vu.lt",
         ],
         [
           "Moderni vila prie jūros",
+          "Erdvi vila su vaizdu į kopas. Didelė terasa vakarams stebint saulėlydį ir tiesioginis praėjimas į paplūdimį.",
           210,
           "Nida, Lietuva",
           "Pajūris",
           "https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=800",
+          "host@vu.lt",
         ],
         [
           "Stilingas butas Kaune",
+          "Jaukus, minimalistinis butas šalia Laisvės alėjos. Visi lankytini objektai pasiekiami pėsčiomis.",
           65,
           "Kaunas, Lietuva",
           "Miestas",
           "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800",
+          "host@vu.lt",
         ],
       ]
-      const stmt = db.prepare("INSERT INTO listings (title, price, location, category, image) VALUES (?, ?, ?, ?, ?)")
+      const stmt = db.prepare(
+        "INSERT INTO listings (title, description, price, location, category, image, host_email) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
       initialListings.forEach((l) => stmt.run(l))
       stmt.finalize()
       console.log("Pradiniai skelbimai sukurti.")
@@ -96,17 +108,16 @@ db.serialize(() => {
 
 /** API MARŠRUTAI **/
 
-// 1. Vartotojo registracija
+// Vartotojų valdymas
 app.post("/api/register", (req, res) => {
   const { email, password, role } = req.body
   const hashed = bcrypt.hashSync(password, saltRounds)
   db.run("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", [email, hashed, role], (err) => {
-    if (err) return res.status(500).json({ error: "Vartotojas jau egzistuoja arba DB klaida" })
+    if (err) return res.status(500).json({ error: "Vartotojas jau egzistuoja" })
     res.status(201).json({ success: true })
   })
 })
 
-// 2. Prisijungimas
 app.post("/api/login", (req, res) => {
   const { email, password } = req.body
   db.get("SELECT * FROM users WHERE email = ?", [email], (err, user) => {
@@ -119,7 +130,7 @@ app.post("/api/login", (req, res) => {
   })
 })
 
-// 3. Gauti visus skelbimus
+// Skelbimų valdymas
 app.get("/api/listings", (req, res) => {
   db.all("SELECT * FROM listings", [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message })
@@ -127,7 +138,6 @@ app.get("/api/listings", (req, res) => {
   })
 })
 
-// 4. Gauti konkretų skelbimą pagal ID
 app.get("/api/listings/:id", (req, res) => {
   db.get("SELECT * FROM listings WHERE id = ?", [req.params.id], (err, row) => {
     if (err) return res.status(500).json({ error: err.message })
@@ -135,25 +145,31 @@ app.get("/api/listings/:id", (req, res) => {
     res.json(row)
   })
 })
-app.delete("/api/listings/:id", (req, res) => {
-  const id = req.params.id
-  // Svarbu: šalinant skelbimą, reikėtų pagalvoti apie susijusias rezervacijas (ar jas palikti, ar šalinti)
-  db.run("DELETE FROM listings WHERE id = ?", [id], (err) => {
-    if (err) return res.status(500).json({ error: err.message })
-    res.json({ success: true })
-  })
-})
-// 5. Sukurti naują skelbimą (Host funkcija)
+
+// Sukurti naują skelbimą (Pridėtas description ir host_email)
 app.post("/api/listings", (req, res) => {
-  const { title, price, location, category, image } = req.body
-  const query = `INSERT INTO listings (title, price, location, category, image) VALUES (?, ?, ?, ?, ?)`
-  db.run(query, [title, price, location, category, image], function (err) {
+  const { title, description, price, location, category, image, host_email } = req.body
+  const query = `INSERT INTO listings (title, description, price, location, category, image, host_email) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  db.run(query, [title, description, price, location, category, image, host_email], function (err) {
     if (err) return res.status(500).json({ error: err.message })
     res.status(201).json({ id: this.lastID, success: true })
   })
 })
 
-// 6. Sukurti rezervaciją
+// Šalinti skelbimą (Admin/Host funkcija)
+app.delete("/api/listings/:id", (req, res) => {
+  const id = req.params.id
+  // Pirmiausia ištriname susijusias rezervacijas, tada patį skelbimą (duomenų vientisumui)
+  db.serialize(() => {
+    db.run("DELETE FROM bookings WHERE listing_id = ?", [id])
+    db.run("DELETE FROM listings WHERE id = ?", [id], (err) => {
+      if (err) return res.status(500).json({ error: err.message })
+      res.json({ success: true })
+    })
+  })
+})
+
+// Rezervacijų valdymas
 app.post("/api/bookings", (req, res) => {
   const { listing_id, user_email, date } = req.body
   if (!listing_id || !user_email) return res.status(400).json({ error: "Trūksta duomenų" })
@@ -165,14 +181,17 @@ app.post("/api/bookings", (req, res) => {
   })
 })
 
-// 7. Gauti rezervacijas (Pagal rolę)
 app.get("/api/bookings", (req, res) => {
   const { email, role } = req.query
   let sql = ""
   let params = []
 
-  if (role === "host" || role === "admin") {
+  // Adminas mato viską, Hostas savo būstų užsakymus, Guest tik savo užsakymus
+  if (role === "admin") {
     sql = `SELECT b.*, l.title, l.price, l.location FROM bookings b JOIN listings l ON b.listing_id = l.id`
+  } else if (role === "host") {
+    sql = `SELECT b.*, l.title, l.price, l.location FROM bookings b JOIN listings l ON b.listing_id = l.id WHERE l.host_email = ?`
+    params = [email]
   } else {
     sql = `SELECT b.*, l.title, l.price, l.location FROM bookings b JOIN listings l ON b.listing_id = l.id WHERE b.user_email = ?`
     params = [email]
@@ -184,7 +203,6 @@ app.get("/api/bookings", (req, res) => {
   })
 })
 
-// 8. Atšaukti rezervaciją
 app.delete("/api/bookings/:id", (req, res) => {
   db.run("DELETE FROM bookings WHERE id = ?", [req.params.id], (err) => {
     if (err) return res.status(500).json({ error: err.message })

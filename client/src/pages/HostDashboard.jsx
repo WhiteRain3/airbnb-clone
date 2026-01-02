@@ -1,133 +1,161 @@
-import { Euro, Image as ImageIcon, LayoutGrid, MapPin, Tag, Type } from 'lucide-react';
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { AlignLeft, Euro, Home, Image as ImageIcon, MapPin, PlusCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AuthService } from '../services/auth';
 
 const HostDashboard = () => {
-  const navigate = useNavigate();
-  const [form, setForm] = useState({
+  const user = AuthService.getUser();
+  const [myListings, setMyListings] = useState([]);
+  const [newListing, setNewListing] = useState({
     title: '',
+    description: '',
     price: '',
     location: '',
-    category: 'Miestas', // Pradinė reikšmė sutampa su pirmu pasirinkimu
+    category: 'Miestas',
     image: ''
   });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  // Gauname tik šio šeimininko skelbimus
+  const fetchMyListings = async () => {
+    const res = await fetch('http://localhost:5000/api/listings');
+    const data = await res.json();
+    setMyListings(data.filter(l => l.host_email === user.email));
+  };
+
+  useEffect(() => {
+    fetchMyListings();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
     
-    if (!form.title || !form.price || !form.location) {
-      setError("Užpildykite visus privalomus laukus!");
-      return;
-    }
+    const listingToSave = {
+      ...newListing,
+      host_email: user.email,
+      price: Number(newListing.price)
+    };
 
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5000/api/listings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          price: Number(form.price),
-          image: form.image || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800'
-        })
-      });
+    const res = await fetch('http://localhost:5000/api/listings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(listingToSave)
+    });
 
-      if (res.ok) {
-        navigate('/');
-      } else {
-        setError("Klaida išsaugant skelbimą.");
-      }
-    } catch (err) {
-      setError("Serverio ryšio klaida.");
-    } finally {
-      setLoading(false);
+    if (res.ok) {
+      alert('Skelbimas sėkmingai pridėtas!');
+      setNewListing({ title: '', description: '', price: '', location: '', category: 'Miestas', image: '' });
+      fetchMyListings();
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-rose-50 text-rose-500 rounded-2xl">
-          <LayoutGrid size={24} />
+    <div className="max-w-6xl mx-auto p-6 space-y-12 animate-in fade-in duration-500">
+      {/* Antraštė */}
+      <div className="flex items-center gap-4 p-8 bg-slate-900 text-white rounded-[3rem] shadow-xl">
+        <div className="p-4 bg-rose-500 rounded-2xl">
+          <PlusCircle size={32} />
         </div>
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Pridėti naują būstą</h1>
+        <div>
+          <h1 className="text-3xl font-black italic tracking-tight">Šeimininko Skydas</h1>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Valdykite savo nekilnojamąjį turtą</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl text-sm font-bold border border-rose-100">{error}</div>}
-        
-        <div className="space-y-2">
-          <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 flex items-center gap-2">
-            <Type size={14} /> Pavadinimas
-          </label>
-          <input 
-            placeholder="pvz. Jaukus butas Vilniaus centre" 
-            className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500 transition-all" 
-            onChange={e => setForm({...form, title: e.target.value})} 
-          />
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 flex items-center gap-2">
-              <MapPin size={14} /> Vieta
-            </label>
-            <input 
-              placeholder="Miestas, šalis" 
-              className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500 transition-all" 
-              onChange={e => setForm({...form, location: e.target.value})} 
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 flex items-center gap-2">
-              <Euro size={14} /> Kaina
-            </label>
-            <input 
-              type="number" 
-              placeholder="€ už naktį" 
-              className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500 transition-all" 
-              onChange={e => setForm({...form, price: e.target.value})} 
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* FORMA */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm sticky top-24">
+            <h2 className="text-xl font-black mb-6 flex items-center gap-2">
+              <Home size={20} className="text-rose-500" /> Pridėti naują
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Pavadinimas</label>
+                <input
+                  required
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-rose-500 outline-none transition font-bold text-sm"
+                  placeholder="pvz. Vila Nidoje"
+                  value={newListing.title}
+                  onChange={(e) => setNewListing({...newListing, title: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Aprašymas</label>
+                <textarea
+                  required
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-rose-500 outline-none transition font-medium text-sm h-32 resize-none"
+                  placeholder="Papasakokite apie būstą..."
+                  value={newListing.description}
+                  onChange={(e) => setNewListing({...newListing, description: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Kaina (€)</label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-rose-500 outline-none transition font-bold text-sm"
+                    value={newListing.price}
+                    onChange={(e) => setNewListing({...newListing, price: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Kategorija</label>
+                  <select 
+                    className="w-full p-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-rose-500 outline-none transition font-bold text-sm appearance-none"
+                    value={newListing.category}
+                    onChange={(e) => setNewListing({...newListing, category: e.target.value})}
+                  >
+                    <option>Miestas</option>
+                    <option>Gamta</option>
+                    <option>Pajūris</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Nuotraukos URL</label>
+                <input
+                  required
+                  className="w-full p-4 bg-slate-50 border-2 border-slate-50 rounded-2xl focus:border-rose-500 outline-none transition font-medium text-sm"
+                  placeholder="https://images.unsplash.com/..."
+                  value={newListing.image}
+                  onChange={(e) => setNewListing({...newListing, image: e.target.value})}
+                />
+              </div>
+
+              <button type="submit" className="w-full py-5 bg-rose-500 text-white rounded-[1.5rem] font-black hover:bg-rose-600 transition shadow-lg shadow-rose-200 mt-4">
+                Sukurti skelbimą
+              </button>
+            </form>
           </div>
         </div>
 
-        {/* --- Čia yra tavo ieškomas KATEGORIJOS PASIRINKIMAS --- */}
-        <div className="space-y-2">
-          <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 flex items-center gap-2">
-            <Tag size={14} /> Kategorija (filtravimui)
-          </label>
-          <select 
-            className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500 appearance-none cursor-pointer font-medium text-slate-700"
-            value={form.category}
-            onChange={e => setForm({...form, category: e.target.value})}
-          >
-            <option value="Miestas">Miestas</option>
-            <option value="Gamta">Gamta</option>
-            <option value="Pajūris">Pajūris</option>
-          </select>
+        {/* MANO SKELBIMAI */}
+        <div className="lg:col-span-2 space-y-6">
+          <h2 className="text-2xl font-black text-slate-800">Mano aktyvūs būstai ({myListings.length})</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {myListings.map(l => (
+              <div key={l.id} className="bg-white p-4 rounded-[2rem] border border-slate-100 flex gap-4 shadow-sm items-center">
+                <img src={l.image} className="w-20 h-20 rounded-2xl object-cover" alt="" />
+                <div className="flex-1">
+                  <p className="font-black text-slate-900 leading-tight">{l.title}</p>
+                  <p className="text-xs text-slate-400 font-bold uppercase">{l.location}</p>
+                  <p className="text-rose-500 font-black mt-1">{l.price}€</p>
+                </div>
+              </div>
+            ))}
+            {myListings.length === 0 && (
+              <div className="col-span-2 p-20 text-center border-4 border-dashed border-slate-100 rounded-[3rem] text-slate-300 font-black">
+                Jūs dar neturite įkeltų būstų
+              </div>
+            )}
+          </div>
         </div>
-
-        <div className="space-y-2">
-          <label className="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 flex items-center gap-2">
-            <ImageIcon size={14} /> Nuotraukos URL
-          </label>
-          <input 
-            placeholder="https://..." 
-            className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500 transition-all" 
-            onChange={e => setForm({...form, image: e.target.value})} 
-          />
-        </div>
-        
-        <button 
-          disabled={loading}
-          className="w-full bg-rose-500 hover:bg-rose-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-rose-100 transition-all hover:-translate-y-1 disabled:opacity-50"
-        >
-          {loading ? "Skelbiama..." : "Paskelbti skelbimą"}
-        </button>
-      </form>
+      </div>
     </div>
   );
 };

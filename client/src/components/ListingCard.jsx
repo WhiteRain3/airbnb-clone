@@ -1,43 +1,56 @@
-import { Heart, MapPin, Star } from 'lucide-react';
+import { ArrowRight, MapPin } from 'lucide-react';
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const ListingCard = ({ listing }) => {
-  // Apsauga: jei reitingo nėra, nustatome numatytąją reikšmę arba 0
-  const displayRating = listing.rating ? Number(listing.rating).toFixed(1) : "Naujas";
+  const navigate = useNavigate();
 
   return (
-    <Link to={`/listing/${listing.id}`} className="group block">
-      <div className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100">
+    <div 
+      onClick={() => navigate(`/listing/${listing.id}`)}
+      className="group bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden hover:shadow-2xl transition-all duration-500 cursor-pointer"
+    >
+      {/* Nuotrauka */}
+      <div className="relative h-64 overflow-hidden">
         <img 
-          src={listing.image || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800'} 
-          alt={listing.title}
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+          src={listing.image} 
+          alt={listing.title} 
+          className="w-full h-full object-cover group-hover:scale-110 transition duration-700" 
         />
-        <button className="absolute top-3 right-3 p-2 rounded-full bg-white/70 backdrop-blur-md hover:bg-white text-slate-900 transition-colors">
-          <Heart size={18} />
-        </button>
+        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+          {listing.category}
+        </div>
       </div>
-
-      <div className="mt-3 space-y-1">
+      
+      {/* Turinys */}
+      <div className="p-6 space-y-4">
         <div className="flex justify-between items-start">
-          <h3 className="font-bold text-slate-800 truncate">{listing.title}</h3>
-          <div className="flex items-center gap-1 shrink-0">
-            <Star size={14} className="fill-amber-500 text-amber-500" />
-            <span className="text-sm font-semibold">{displayRating}</span>
+          <div className="space-y-1">
+            <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none group-hover:text-rose-500 transition-colors">
+              {listing.title}
+            </h3>
+            <p className="flex items-center gap-1 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+              <MapPin size={14} /> {listing.location}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-black text-slate-900 leading-none">{listing.price}€</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase">naktis</p>
           </div>
         </div>
         
-        <p className="text-slate-500 text-sm flex items-center gap-1">
-          <MapPin size={14} /> {listing.location}
+        {/* Aprašymo ištrauka (line-clamp-2 paslepia tekstą po 2 eilučių) */}
+        <p className="text-slate-500 text-sm leading-relaxed line-clamp-2 italic">
+          "{listing.description || 'Šis šeimininkas dar nepridėjo aprašymo.'}"
         </p>
-        
-        <p className="text-sm">
-          <span className="font-bold text-slate-900">€{listing.price}</span>
-          <span className="text-slate-500"> / naktis</span>
-        </p>
+
+        <div className="pt-2">
+          <div className="w-full py-4 bg-slate-50 text-slate-900 rounded-2xl font-black group-hover:bg-rose-500 group-hover:text-white transition-all flex items-center justify-center gap-2">
+            Peržiūrėti <ArrowRight size={18} />
+          </div>
+        </div>
       </div>
-    </Link>
+    </div>
   );
 };
 
