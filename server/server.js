@@ -143,11 +143,11 @@ app.delete("/api/bookings/:id", (req, res) => {
 
 // Jei NODE_ENV yra production, pateikiame sukompiliuotą React projektą
 if (process.env.NODE_ENV === "production") {
-  // Nurodome kelią į client/dist aplanką
-  app.use(express.static(path.join(__dirname, "../client/dist")))
+  // Pateikiame statinius failus
+  app.use(express.static(path.join(__dirname, "../client/dist")));
 
-  // Bet koks kitas maršrutas nukreipiamas į index.html (React Router palaikymui)
-  app.get('(.*)', (req, res) => {
+  // PATAISYTA: Naudojame :any* parametrą
+  app.get('/:any*', (req, res) => {
     res.sendFile(path.resolve(__dirname, "../client", "dist", "index.html"));
   });
 }
